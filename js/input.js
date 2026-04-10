@@ -4,9 +4,9 @@ DD.Input = {
   // Normalized output (same format for keyboard and touch)
   moveX: 0,
   moveY: 0,
-  aimAngle: 0,
-  aimX: 0,
-  aimY: 0,
+  aimAngle: -Math.PI / 2,  // default: up
+  aimX: 240,               // canvas center-top (default aim target)
+  aimY: 60,
   action1: false,
   action2: false,
   action1Pressed: false,  // true only on the frame it was pressed
@@ -27,6 +27,7 @@ DD.Input = {
   _touchJoy: { active: false, id: null, startX: 0, startY: 0, curX: 0, curY: 0 },
   _touchAction: { active: false, id: null },
   _touchAction2: { active: false, id: null },
+  _touchAim: { active: false, id: null },  // finger dragging in upper area to aim
   JOY_RADIUS: 50,
   JOY_DEAD: 8,
 
@@ -138,9 +139,9 @@ DD.Input = {
     touchAction1 = this._touchAction.active;
     touchAction2 = this._touchAction2.active;
 
-    // Touch aim
-    if (playerX !== undefined && touchAction1) {
-      this.aimAngle = DD.Utils.angle(playerX, playerY, DD.Config.CANVAS_W / 2, DD.Config.PLATFORM_Y);
+    // Touch aim — only used as fallback; gunner auto-aim is handled in game.js
+    if (playerX !== undefined && this.isMobile && this._touchAim.active) {
+      this.aimAngle = DD.Utils.angle(playerX, playerY, this.aimX, this.aimY);
     }
 
     // Merge: touch overrides keyboard movement if joystick is active
@@ -188,9 +189,13 @@ DD.Input = {
           this._touchAction.id = touch.identifier;
         }
       } else {
-        // Upper area = aim
+        // Upper area = aim direction
         this.aimX = p.x;
         this.aimY = p.y;
+        if (!this._touchAim.active) {
+          this._touchAim.active = true;
+          this._touchAim.id = touch.identifier;
+        }
       }
     }
   },
@@ -202,6 +207,10 @@ DD.Input = {
       if (touch.identifier === this._touchJoy.id) {
         this._touchJoy.curX = p.x;
         this._touchJoy.curY = p.y;
+      }
+      if (touch.identifier === this._touchAim.id) {
+        this.aimX = p.x;
+        this.aimY = p.y;
       }
     }
   },
@@ -220,6 +229,10 @@ DD.Input = {
       if (touch.identifier === this._touchAction2.id) {
         this._touchAction2.active = false;
         this._touchAction2.id = null;
+      }
+      if (touch.identifier === this._touchAim.id) {
+        this._touchAim.active = false;
+        this._touchAim.id = null;
       }
     }
   },

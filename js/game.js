@@ -175,7 +175,7 @@ DD.Game = {
       // In test mode: local input goes to active role, others get basic AI (dodge enemies)
       for (const role of ['guardian', 'technician', 'gunner']) {
         if (role === this.activeRole) {
-          inputs[role] = DD.Input.getState();
+          inputs[role] = this._localInput(role);
         } else {
           inputs[role] = this._aiInput(role);
         }
@@ -187,7 +187,7 @@ DD.Game = {
 
       for (const role of ['guardian', 'technician', 'gunner']) {
         if (role === DD.Network.localRole) {
-          inputs[role] = DD.Input.getState();
+          inputs[role] = this._localInput(role);
         } else if (humanRoles.has(role) && DD.Network.remoteInputs[role]) {
           inputs[role] = DD.Network.remoteInputs[role];
         } else {
@@ -293,6 +293,30 @@ DD.Game = {
       state.bullets = DD.Entities.bullets;
       DD.Network.broadcastGameState(state);
     }
+  },
+
+  // Local player input — applies auto-aim for gunner on mobile
+  _localInput(role) {
+    const inp = DD.Input.getState();
+    if (role === 'gunner' && DD.Input.isMobile) {
+      const p = DD.Entities.players.gunner;
+      if (p && p.alive) {
+        const nearest = this._nearestEnemy(p.x, p.y);
+        if (nearest) {
+          inp.aimAngle = DD.Utils.angle(p.x, p.y, nearest.x, nearest.y);
+        }
+      }
+    }
+    return inp;
+  },
+
+  _nearestEnemy(x, y) {
+    let best = null, bestDist = Infinity;
+    for (const e of DD.Entities.enemies) {
+      const d = DD.Utils.dist(x, y, e.x, e.y);
+      if (d < bestDist) { bestDist = d; best = e; }
+    }
+    return best;
   },
 
   // Simple AI: dodge nearest enemy, auto-act
