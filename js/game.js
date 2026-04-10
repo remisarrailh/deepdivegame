@@ -52,6 +52,9 @@ DD.Game = {
       }
     });
     window.addEventListener('touchend', (e) => {
+      // Init audio on first touch (browser policy requires user gesture)
+      DD.Audio.init();
+      DD.Audio.startMusic();
       if (e.changedTouches.length > 0) {
         DD.Input._updateCanvasRect();
         const t = e.changedTouches[0];

@@ -166,30 +166,29 @@ DD.Input = {
     for (const touch of e.changedTouches) {
       const p = this.screenToCanvas(touch.clientX, touch.clientY);
 
-      // Left half = joystick
-      if (p.x < C.CANVAS_W * 0.5 && p.y > C.CANVAS_H * 0.5) {
-        if (!this._touchJoy.active) {
-          this._touchJoy.active = true;
-          this._touchJoy.id = touch.identifier;
-          this._touchJoy.startX = p.x;
-          this._touchJoy.startY = p.y;
-          this._touchJoy.curX = p.x;
-          this._touchJoy.curY = p.y;
-        }
-      }
-      // Right half bottom = action buttons
-      else if (p.x >= C.CANVAS_W * 0.5 && p.y > C.CANVAS_H * 0.5) {
-        // Top-right quadrant of bottom = action2, bottom-right = action1
-        if (p.y < C.CANVAS_H * 0.75) {
+      // Bottom strip (y > 72%): joystick left / action buttons right
+      if (p.y > C.CANVAS_H * 0.72) {
+        if (p.x < C.CANVAS_W * 0.45) {
+          // Left side = joystick
+          if (!this._touchJoy.active) {
+            this._touchJoy.active = true;
+            this._touchJoy.id = touch.identifier;
+            this._touchJoy.startX = p.x;
+            this._touchJoy.startY = p.y;
+            this._touchJoy.curX = p.x;
+            this._touchJoy.curY = p.y;
+          }
+        } else if (p.x < C.CANVAS_W * 0.72) {
+          // Middle-right = action2 [E]
           this._touchAction2.active = true;
           this._touchAction2.id = touch.identifier;
         } else {
+          // Far-right = action1
           this._touchAction.active = true;
           this._touchAction.id = touch.identifier;
         }
-      }
-      // Top half = aim
-      else {
+      } else {
+        // Upper area = aim
         this.aimX = p.x;
         this.aimY = p.y;
       }
@@ -229,52 +228,71 @@ DD.Input = {
   renderTouch(ctx) {
     if (!this.isMobile) return;
     const C = DD.Config;
+    // Control strip: from 72% height down to HUD panels
+    const stripY = C.CANVAS_H * 0.86; // vertical center of button area
 
-    ctx.globalAlpha = 0.3;
-
-    // Joystick base
+    // --- Joystick ---
     if (this._touchJoy.active) {
-      ctx.strokeStyle = '#fff';
+      ctx.globalAlpha = 0.4;
+      ctx.strokeStyle = '#aaa';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(this._touchJoy.startX, this._touchJoy.startY, this.JOY_RADIUS, 0, Math.PI * 2);
       ctx.stroke();
-
-      // Joystick knob
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#ffffff55';
       ctx.beginPath();
-      ctx.arc(this._touchJoy.curX, this._touchJoy.curY, 15, 0, Math.PI * 2);
+      ctx.arc(this._touchJoy.curX, this._touchJoy.curY, 14, 0, Math.PI * 2);
       ctx.fill();
     } else {
-      // Hint area
-      ctx.strokeStyle = '#555';
+      // Hint circle
+      ctx.globalAlpha = 0.2;
+      ctx.strokeStyle = '#888';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(C.CANVAS_W * 0.25, C.CANVAS_H * 0.8, this.JOY_RADIUS, 0, Math.PI * 2);
+      ctx.arc(C.CANVAS_W * 0.22, stripY, this.JOY_RADIUS, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = '#aaa';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('MOVE', C.CANVAS_W * 0.22, stripY + 4);
     }
 
-    // Action buttons
-    const btnRadius = 28;
-    // Action 1 (primary)
-    ctx.fillStyle = this._touchAction.active ? '#ff4444' : '#442222';
+    // --- Action buttons (side by side, bottom-right) ---
+    const btnR = 30;
+    const a2x = C.CANVAS_W * 0.62;
+    const a1x = C.CANVAS_W * 0.84;
+
+    // Action 2 [E]
+    ctx.globalAlpha = this._touchAction2.active ? 0.85 : 0.45;
+    ctx.fillStyle = this._touchAction2.active ? '#33cc66' : '#0d2218';
     ctx.beginPath();
-    ctx.arc(C.CANVAS_W * 0.82, C.CANVAS_H * 0.88, btnRadius, 0, Math.PI * 2);
+    ctx.arc(a2x, stripY, btnR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#44ff88';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#44ff88';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('[E]', a2x, stripY + 4);
+
+    // Action 1
+    ctx.globalAlpha = this._touchAction.active ? 0.85 : 0.45;
+    ctx.fillStyle = this._touchAction.active ? '#cc3333' : '#220d0d';
+    ctx.beginPath();
+    ctx.arc(a1x, stripY, btnR * 1.1, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#ff4444';
     ctx.lineWidth = 2;
     ctx.stroke();
-
-    // Action 2 (secondary)
-    ctx.fillStyle = this._touchAction2.active ? '#44ff44' : '#224422';
-    ctx.beginPath();
-    ctx.arc(C.CANVAS_W * 0.65, C.CANVAS_H * 0.7, btnRadius * 0.7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#44ff44';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('ACT', a1x, stripY + 4);
 
     ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
   },
 
   getState() {

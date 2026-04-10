@@ -143,6 +143,13 @@ DD.HUD = {
       ctx.font = 'bold 9px monospace';
       ctx.textAlign = 'left';
       ctx.fillText(labels[i], x + 4, panelY + 10);
+      // Tap hint in test mode on mobile
+      if (DD.Game.testMode && DD.Input.isMobile && !isActive) {
+        ctx.fillStyle = colors[i] + '66';
+        ctx.font = '8px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText('TAP', x + panelW - 4, panelY + 10);
+      }
 
       // HP bar
       const hpBarW = panelW - 8;

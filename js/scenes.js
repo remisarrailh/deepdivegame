@@ -394,6 +394,22 @@ DD.Scenes = {
     if (this._isJoining) return;  // handled by keyboard
 
     switch (this.current) {
+      case 'GAME':
+        // Test mode: tap a HUD panel to switch active role
+        if (DD.Game.testMode) {
+          const panelH = 38, panelW = C.CANVAS_W / 3 - 4;
+          const panelY = C.CANVAS_H - panelH - 2;
+          const roles = ['guardian', 'technician', 'gunner'];
+          for (let i = 0; i < 3; i++) {
+            const px = 2 + i * (panelW + 4);
+            if (canvasX >= px && canvasX <= px + panelW && canvasY >= panelY && canvasY <= panelY + panelH) {
+              DD.Game.activeRole = roles[i];
+              break;
+            }
+          }
+        }
+        break;
+
       case 'MENU':
         for (const btn of this._menuButtons) {
           if (this._hitButton(canvasX, canvasY, W / 2, btn.y, 220, 42)) {
