@@ -89,6 +89,10 @@ DD.Entities = {
     // Invulnerability countdown
     if (p.invulnFrames > 0) p.invulnFrames--;
 
+    // During cable puzzle, action1 is reserved for cable dragging — disable combat actions
+    const cablePuzzleActive = DD.Puzzles.active && DD.Puzzles.active.type === 'cables' && !DD.Puzzles.active.solved;
+    const effectiveInput = cablePuzzleActive ? { ...input, action1: false } : input;
+
     // Role-specific logic
     if (role === 'guardian') {
       p.shieldAngle = input.aimAngle;
@@ -104,7 +108,7 @@ DD.Entities = {
 
       const wasShield = p.shieldActive;
       // Can't activate while depleted or empty
-      p.shieldActive = input.action1 && p.shieldEnergy > 0 && !p.shieldDepleted;
+      p.shieldActive = effectiveInput.action1 && p.shieldEnergy > 0 && !p.shieldDepleted;
 
       if (p.shieldActive && !wasShield && p.shieldSoundTimer === 0) {
         DD.Audio.play('shield');
@@ -149,10 +153,9 @@ DD.Entities = {
             p.repairing = true;
             state.platform.energy = Math.min(C.PLATFORM_ENERGY_MAX, state.platform.energy + C.TECH_REPAIR_RATE);
             if (Math.random() < 0.3) DD.Particles.sparks(term.x + (Math.random()-0.5)*20, term.y + (Math.random()-0.5)*10, 2);
-            if (!p._soundTimer) { DD.Audio.play('repair'); p._soundTimer = 35; }
           }
         }
-      } else if (input.action1) {
+      } else if (effectiveInput.action1) {
         // Space/click = recharge gunner ammo
         if (gunner && gunner.alive) {
           const d = DD.Utils.dist(p.x, p.y, gunner.x, gunner.y);
@@ -171,7 +174,7 @@ DD.Entities = {
     if (role === 'gunner') {
       p.aimAngle = input.aimAngle;
       if (p.fireTimer > 0) p.fireTimer--;
-      if (input.action1 && p.fireTimer <= 0 && p.ammo >= 1) {
+      if (effectiveInput.action1 && p.fireTimer <= 0 && p.ammo >= 1) {
         this.fireBullet(p.x, p.y, p.aimAngle);
         p.ammo = Math.max(0, p.ammo - 1);
         p.fireTimer = C.GUNNER_FIRE_COOLDOWN;

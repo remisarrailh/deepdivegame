@@ -38,9 +38,9 @@ DD.Puzzles = {
       type: 'cables',
       timeLimit: 30 * 60,  // 30 seconds in frames
       cables: [
-        { color: colors[0], correctSocket: sockets[0], placed: -1, x: cx - 80, y: cy - 40 },
-        { color: colors[1], correctSocket: sockets[1], placed: -1, x: cx, y: cy - 40 },
-        { color: colors[2], correctSocket: sockets[2], placed: -1, x: cx + 80, y: cy - 40 },
+        { color: colors[0], correctSocket: sockets[0], placed: -1, x: cx - 80, y: cy - 40, origX: cx - 80, origY: cy - 40 },
+        { color: colors[1], correctSocket: sockets[1], placed: -1, x: cx,       y: cy - 40, origX: cx,       origY: cy - 40 },
+        { color: colors[2], correctSocket: sockets[2], placed: -1, x: cx + 80,  y: cy - 40, origX: cx + 80,  origY: cy - 40 },
       ],
       sockets: [
         { x: cx - 80, y: cy + 60 },
@@ -153,14 +153,33 @@ DD.Puzzles = {
       } else if (puzzle.dragging !== -1) {
         // Release: check if near a socket
         const cable = puzzle.cables[puzzle.dragging];
+        let snapped = false;
         for (let si = 0; si < puzzle.sockets.length; si++) {
           const s = puzzle.sockets[si];
+          // Skip socket already occupied by another cable
+          const occupied = puzzle.cables.some((c, ci) => ci !== puzzle.dragging && c.placed === si);
+          if (occupied) continue;
           if (DD.Utils.dist(cable.x, cable.y, s.x, s.y) < 35) {
             cable.placed = si;
             cable.x = s.x;
             cable.y = s.y;
+            snapped = true;
+
+            if (cable.placed !== cable.correctSocket) {
+              // Wrong socket: 5-second penalty, reset cable to origin
+              this.timer = Math.min(this.timer + 5 * 60, this.active.timeLimit - 30);
+              cable.placed = -1;
+              cable.x = cable.origX;
+              cable.y = cable.origY;
+              DD.Utils.triggerShake(3, 8);
+            }
             break;
           }
+        }
+        if (!snapped) {
+          // Dropped in empty space: return to origin
+          cable.x = cable.origX;
+          cable.y = cable.origY;
         }
         puzzle.dragging = -1;
 

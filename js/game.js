@@ -220,6 +220,9 @@ DD.Game = {
     };
     const drain = drainMap[state.phase] || 0;
     state.platform.energy = Math.max(0, state.platform.energy - drain);
+    DD.Audio.updateEnergyAlert(state.platform.energy);
+    const tech = DD.Entities.players.technician;
+    DD.Audio.updateRepair(tech && tech.repairing);
 
     // Phase state machine
     switch (state.phase) {
@@ -403,6 +406,7 @@ DD.Game = {
     this._descentOffset = 0;
     DD.Waves.startWave(state.waveNum);
     this._showBanner(state, `WAVE ${state.waveNum}`);
+    DD.Audio.play('getready');
     console.log('[Game] Wave', state.waveNum, 'started');
   },
 
@@ -442,6 +446,8 @@ DD.Game = {
       DD.Network.sendGameOver(DD.Scenes.gameOver.stats);
     }
 
+    DD.Audio.stopAllLoops();
+    DD.Audio.play('gameover');
     DD.Scenes.switch('GAMEOVER');
     console.log('[Game] Game over. Victory:', victory, 'Depth:', state.depth);
   },
@@ -595,6 +601,7 @@ DD.Game = {
 
   startGame() {
     console.log('[Game] Starting game');
+    DD.Audio.stopAllLoops();  // reset all looping sounds
     DD.Progression.applyToConfig();
     DD.Entities.init();
     DD.Waves.init();
