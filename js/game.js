@@ -41,6 +41,9 @@ DD.Game = {
     // Handle mouse/touch clicks for scenes
     // Listen on window so clicks on the black border area still work
     window.addEventListener('click', (e) => {
+      // Init audio + start music on first interaction (browser policy)
+      DD.Audio.init();
+      DD.Audio.startMusic();
       DD.Input._updateCanvasRect();  // always fresh
       const pos = DD.Input.screenToCanvas(e.clientX, e.clientY);
       // Only handle if click is within canvas bounds
@@ -65,6 +68,11 @@ DD.Game = {
       if (e.code === 'Tab') {
         e.preventDefault();
         this.debugMode = !this.debugMode;
+        return;
+      }
+      if (e.code === 'KeyM') {
+        const muted = DD.Audio.toggleMute();
+        console.log('[Audio] Muted:', muted);
         return;
       }
       DD.Scenes.handleKeyDown(e.code);
@@ -170,10 +178,19 @@ DD.Game = {
         }
       }
     } else {
-      // Host: local is guardian, remotes are tech/gunner
-      inputs['guardian'] = DD.Input.getState();
-      for (const role of ['technician', 'gunner']) {
-        inputs[role] = DD.Network.remoteInputs[role] || { moveX: 0, moveY: 0, aimAngle: 0, action1: false, action2: false };
+      // Host: human roles = host's role + roles assigned to connected peers
+      const humanRoles = new Set(Object.values(DD.Network.roles).filter(Boolean));
+      if (DD.Network.localRole) humanRoles.add(DD.Network.localRole);
+
+      for (const role of ['guardian', 'technician', 'gunner']) {
+        if (role === DD.Network.localRole) {
+          inputs[role] = DD.Input.getState();
+        } else if (humanRoles.has(role) && DD.Network.remoteInputs[role]) {
+          inputs[role] = DD.Network.remoteInputs[role];
+        } else {
+          // Role unassigned or peer disconnected → AI
+          inputs[role] = this._aiInput(role);
+        }
       }
     }
 
@@ -252,11 +269,10 @@ DD.Game = {
         break;
     }
 
-    // Check game over conditions
-    // Game over only when all are dead AND not downed (downed = still revivable)
+    // Game over if nobody is alive (dead or downed counts — no one to revive)
     const allDead = ['guardian', 'technician', 'gunner'].every(r => {
       const p = DD.Entities.players[r];
-      return !p || (!p.alive && !p.downed);
+      return !p || !p.alive;  // downed = alive:false, so this catches both KO and dead
     });
     if (state.platform.energy <= 0 || allDead) {
       this._gameOver(state, false);
@@ -375,6 +391,7 @@ DD.Game = {
     state.phase = 'DESCENDING';
     state.phaseTimer = 0;
     this._showBanner(state, 'DESCENDING...');
+    DD.Audio.play('nextlevel');
     console.log('[Game] Descending to wave', state.waveNum + 1);
   },
 
@@ -600,12 +617,15 @@ DD.Game = {
     switch (type) {
       case 'LOBBY_UPDATE':
         DD.Scenes.lobby.players = data.players || [];
-        // If we're a peer, update our assigned role
-        if (!DD.Network.isHostFlag && data.players) {
-          const me = data.players.find(p => p.peerId !== 'host' &&
-            DD.Network.peer && p.peerId === DD.Network.peer.id);
-          if (me && me.role) DD.Network.localRole = me.role;
+        // Sync our role if the host confirms it
+        if (!DD.Network.isHostFlag && data.players && DD.Network.peer) {
+          const me = data.players.find(p => p.peerId === DD.Network.peer.id);
+          if (me) DD.Network.localRole = me.role;
         }
+        break;
+
+      case 'ROLE_TAKEN':
+        DD.Scenes.lobby.errorMsg = `${data.role} is already taken, pick another`;
         break;
 
       case 'GAME_START':

@@ -53,9 +53,14 @@ DD.Entities = {
       p.shieldAngle = 0;
       p.shieldActive = false;
       p.shieldEnergy = C.GUARDIAN_SHIELD_ENERGY_MAX;
+      p.shieldDepleted = false;      // true while depletion penalty is active
+      p.shieldDepletionTimer = 0;
+      p.shieldSoundTimer = 0;
+      p.shieldLowWarned = false;     // prevents replaying lowshield sound
     }
     if (role === 'technician') {
       p.recharging = false;
+      p._soundTimer = 0;
     }
     if (role === 'gunner') {
       p.ammo = C.GUNNER_AMMO_MAX;
@@ -87,11 +92,45 @@ DD.Entities = {
     // Role-specific logic
     if (role === 'guardian') {
       p.shieldAngle = input.aimAngle;
-      p.shieldActive = input.action1 && p.shieldEnergy > 0;
+
+      // Depletion penalty countdown
+      if (p.shieldDepletionTimer > 0) {
+        p.shieldDepletionTimer--;
+        if (p.shieldDepletionTimer === 0) p.shieldDepleted = false;
+      }
+
+      // Sound cooldown
+      if (p.shieldSoundTimer > 0) p.shieldSoundTimer--;
+
+      const wasShield = p.shieldActive;
+      // Can't activate while depleted or empty
+      p.shieldActive = input.action1 && p.shieldEnergy > 0 && !p.shieldDepleted;
+
+      if (p.shieldActive && !wasShield && p.shieldSoundTimer === 0) {
+        DD.Audio.play('shield');
+        p.shieldSoundTimer = C.GUARDIAN_SHIELD_SOUND_COOLDOWN;
+      }
+
       if (p.shieldActive) {
         p.shieldEnergy = Math.max(0, p.shieldEnergy - C.GUARDIAN_SHIELD_DRAIN);
-      } else {
+        // Low shield warning (once per dip below 20%)
+        const lowThreshold = C.GUARDIAN_SHIELD_ENERGY_MAX * 0.2;
+        if (p.shieldEnergy <= lowThreshold && !p.shieldLowWarned) {
+          DD.Audio.play('lowshield');
+          p.shieldLowWarned = true;
+        }
+        // Fully drained → penalty before regen
+        if (p.shieldEnergy === 0) {
+          p.shieldActive = false;
+          p.shieldDepleted = true;
+          p.shieldDepletionTimer = C.GUARDIAN_SHIELD_DEPLETION_PENALTY;
+        }
+      } else if (!p.shieldDepleted) {
         p.shieldEnergy = Math.min(C.GUARDIAN_SHIELD_ENERGY_MAX, p.shieldEnergy + C.GUARDIAN_SHIELD_REGEN);
+        // Reset warning once shield is back above 50%
+        if (p.shieldEnergy >= C.GUARDIAN_SHIELD_ENERGY_MAX * 0.5) {
+          p.shieldLowWarned = false;
+        }
       }
     }
 
@@ -99,6 +138,7 @@ DD.Entities = {
       const gunner = this.players.gunner;
       p.recharging = false;
       p.repairing = false;
+      if (p._soundTimer > 0) p._soundTimer--;
 
       if (input.action2) {
         // E = repair terminal (priority over recharge)
@@ -108,8 +148,8 @@ DD.Entities = {
           if (canRepair) {
             p.repairing = true;
             state.platform.energy = Math.min(C.PLATFORM_ENERGY_MAX, state.platform.energy + C.TECH_REPAIR_RATE);
-            // Spark effects on terminal
             if (Math.random() < 0.3) DD.Particles.sparks(term.x + (Math.random()-0.5)*20, term.y + (Math.random()-0.5)*10, 2);
+            if (!p._soundTimer) { DD.Audio.play('repair'); p._soundTimer = 35; }
           }
         }
       } else if (input.action1) {
@@ -122,6 +162,7 @@ DD.Entities = {
             gunner.ammo = Math.min(C.GUNNER_AMMO_MAX, gunner.ammo + amount);
             state.sharedPool.ammo = Math.max(0, state.sharedPool.ammo - amount);
             DD.Particles.rechargeBeam(p.x, p.y, gunner.x, gunner.y);
+            if (!p._soundTimer) { DD.Audio.play('reload'); p._soundTimer = 35; }
           }
         }
       }
@@ -134,6 +175,7 @@ DD.Entities = {
         this.fireBullet(p.x, p.y, p.aimAngle);
         p.ammo = Math.max(0, p.ammo - 1);
         p.fireTimer = C.GUNNER_FIRE_COOLDOWN;
+        DD.Audio.play('gunshot', 0.1);
       }
     }
   },
@@ -237,6 +279,7 @@ DD.Entities = {
         if (DD.Utils.circleCollide(p.x, p.y, p.radius, crate.x, crate.y, crate.radius)) {
           state.sharedPool.ammo += crate.value;
           DD.Particles.corePickup(crate.x, crate.y);
+          DD.Audio.play('pickup');
           this.ammoCrates.splice(ci, 1);
           console.log('[Entities] Ammo crate picked up, pool:', state.sharedPool.ammo);
           break;

@@ -72,6 +72,9 @@ DD.Network = {
 
       conn.on('close', () => {
         console.log('[Net] Peer disconnected:', conn.peer);
+        // Clear their remote input so their role falls back to AI
+        const role = this.roles[conn.peer];
+        if (role) delete this.remoteInputs[role];
         delete this.roles[conn.peer];
         this.connections = this.connections.filter(c => c !== conn);
         this._broadcastAndUpdateLobby();
@@ -90,6 +93,7 @@ DD.Network = {
   joinGame(roomCode, onReady) {
     this.roomCode = roomCode.toUpperCase();
     this.isHostFlag = false;
+    this.localRole = null;  // Start with no role, pick in lobby
 
     console.log('[Net] Joining room:', this.roomCode);
     this.peer = new Peer({ debug: 1 });
@@ -102,14 +106,12 @@ DD.Network = {
 
       this.hostConn.on('open', () => {
         console.log('[Net] Connected to host');
+        // Init lobby with no players until LOBBY_UPDATE arrives
+        DD.Scenes.lobby.players = [];
         if (onReady) onReady();
       });
 
       this.hostConn.on('data', (data) => {
-        if (data.type === 'ROLE_ASSIGN') {
-          this.localRole = data.role;
-          console.log('[Net] Assigned role:', data.role);
-        }
         if (this.onMessage) {
           this.onMessage(data.type, data);
         }
@@ -218,7 +220,7 @@ DD.Network = {
     return {
       x: p.x, y: p.y, hp: p.hp, hpMax: p.hpMax, alive: p.alive,
       invulnFrames: p.invulnFrames,
-      shieldAngle: p.shieldAngle, shieldActive: p.shieldActive, shieldEnergy: p.shieldEnergy,
+      shieldAngle: p.shieldAngle, shieldActive: p.shieldActive, shieldEnergy: p.shieldEnergy, shieldDepleted: p.shieldDepleted,
       recharging: p.recharging,
       ammo: p.ammo, aimAngle: p.aimAngle, fireTimer: p.fireTimer,
     };

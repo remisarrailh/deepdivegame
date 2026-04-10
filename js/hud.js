@@ -159,10 +159,14 @@ DD.HUD = {
         const sRatio = p.shieldEnergy / C.GUARDIAN_SHIELD_ENERGY_MAX;
         ctx.fillStyle = C.COLOR.HP_BAR_BG;
         ctx.fillRect(x + 4, panelY + 21, hpBarW, 4);
-        ctx.fillStyle = p.shieldActive ? C.COLOR.GUARDIAN_SHIELD : C.COLOR.FRIENDLY;
+        let shieldBarColor;
+        if (p.shieldDepleted) shieldBarColor = C.COLOR.DANGER;
+        else if (p.shieldActive) shieldBarColor = C.COLOR.GUARDIAN_SHIELD;
+        else shieldBarColor = C.COLOR.FRIENDLY;
+        ctx.fillStyle = shieldBarColor;
         ctx.fillRect(x + 4, panelY + 21, hpBarW * sRatio, 4);
-        ctx.fillStyle = C.COLOR.TEXT_DIM;
-        ctx.fillText('SHIELD', x + 4, panelY + 35);
+        ctx.fillStyle = p.shieldDepleted ? C.COLOR.DANGER : C.COLOR.TEXT_DIM;
+        ctx.fillText(p.shieldDepleted ? 'OVERLOAD' : 'SHIELD', x + 4, panelY + 35);
       } else if (role === 'technician') {
         const status = p.repairing ? 'REPAIRING' : p.recharging ? 'RECHARGING' : 'STANDBY';
         const statusColor = p.repairing ? C.COLOR.INTERACTIVE : p.recharging ? C.COLOR.TECHNICIAN : C.COLOR.TEXT_DIM;

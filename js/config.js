@@ -65,6 +65,8 @@ DD.Config = {
   GUARDIAN_SHIELD_ENERGY_MAX: 100,
   GUARDIAN_SHIELD_DRAIN: 0.8,
   GUARDIAN_SHIELD_REGEN: 0.3,
+  GUARDIAN_SHIELD_DEPLETION_PENALTY: 90, // frames before regen after full drain (~1.5s)
+  GUARDIAN_SHIELD_SOUND_COOLDOWN: 40,    // min frames between shield activation sounds
   GUARDIAN_HP: 4,
 
   // Technician

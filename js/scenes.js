@@ -403,13 +403,21 @@ DD.Scenes = {
         break;
 
       case 'LOBBY':
-        if (DD.Network.isHostFlag) {
-          if (this._hitButton(canvasX, canvasY, W / 2, H * 0.7, 200, 44)) {
-            DD.Network.startGame();
-            DD.Game.startGame();
+        // Role selection buttons
+        for (const btn of this._lobbyRoleButtons) {
+          if (this._hitButton(canvasX, canvasY, btn.x, btn.y, btn.w, btn.h)) {
+            DD.Network.pickRole(btn.role);
+            this.lobby.errorMsg = '';
+            break;
           }
         }
-        if (this._hitButton(canvasX, canvasY, W / 2, H * 0.85, 160, 36)) {
+        // Start (host only)
+        if (DD.Network.isHostFlag && this._hitButton(canvasX, canvasY, W / 2, H - 90, 200, 44)) {
+          DD.Network.startGame();
+          DD.Game.startGame();
+        }
+        // Back
+        if (this._hitButton(canvasX, canvasY, W / 2, H - 36, 140, 30)) {
           DD.Network.destroy();
           this.switch('MENU');
         }
@@ -459,7 +467,7 @@ DD.Scenes = {
   _handleMenuAction(action) {
     switch (action) {
       case 'host':
-        DD.Network.hostGame((code) => {
+        DD.Network.hostGame(() => {
           this.lobby.players = [{ peerId: 'host', role: 'guardian' }];
           this.lobby.errorMsg = '';
           this.switch('LOBBY');
